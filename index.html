@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Surfer: AI Pose Edition</title>
+  <meta name="description" content="Play a 3D Subway Surfers clone using your body posture in front of your webcam!">
+  
+  <!-- Google Fonts for Retro/Cyberpunk Aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styling -->
+  <link rel="stylesheet" href="/style.css">
+  
+  <!-- MediaPipe Pose Tracking CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- 3D Game Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- Main User Interface Overlay -->
+  <div id="ui-overlay">
+    
+    <!-- Header HUD (Always visible during gameplay) -->
+    <div id="hud" class="hidden">
+      <div class="hud-item score-container">
+        <span class="label">SCORE</span>
+        <span id="score-val" class="value">000000</span>
+      </div>
+      <div class="hud-item coin-container">
+        <span class="label">COINS</span>
+        <span id="coin-val" class="value">0</span>
+      </div>
+      <div class="hud-item multiplier-container">
+        <span class="label">SPEED</span>
+        <span id="speed-val" class="value">1.0x</span>
+      </div>
+    </div>
+
+    <!-- Webcam Picture-in-Picture Overlay (Top Right) -->
+    <div id="webcam-overlay" class="hidden">
+      <div class="webcam-header">
+        <span>AI TRACKING</span>
+        <div id="tracking-status" class="status-indicator disconnected"></div>
+      </div>
+      <div class="webcam-wrapper">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="pose-canvas"></canvas>
+      </div>
+      <div id="posture-feedback" class="posture-feedback">Calibrating...</div>
+    </div>
+
+    <!-- Start & Setup Screen -->
+    <div id="start-screen" class="overlay-panel">
+      <h1 class="game-title">NEON SURFER</h1>
+      <p class="game-subtitle">AI POSTURE CONTROL EDITION</p>
+      
+      <div class="menu-content">
+        <!-- Control Mode Selectors -->
+        <div class="settings-group">
+          <h3>CHOOSE CONTROLLER</h3>
+          <div class="toggle-buttons">
+            <button id="btn-keyboard-mode" class="toggle-btn active" aria-label="Use Keyboard Controls">
+              <span class="icon">⌨️</span> KEYBOARD
+            </button>
+            <button id="btn-camera-mode" class="toggle-btn" aria-label="Use Camera Controls">
+              <span class="icon">📷</span> WEBCAM AI
+            </button>
+          </div>
+        </div>
+
+        <!-- Instructions Panel -->
+        <div class="instructions-panel">
+          <div id="keyboard-instructions" class="instruction-set">
+            <p><strong>Controls:</strong></p>
+            <ul>
+              <li><span class="key">A</span> / <span class="key">←</span> : Lane Left</li>
+              <li><span class="key">D</span> / <span class="key">→</span> : Lane Right</li>
+              <li><span class="key">W</span> / <span class="key">Space</span> / <span class="key">↑</span> : Jump</li>
+              <li><span class="key">S</span> / <span class="key">↓</span> : Slide / Crouch</li>
+            </ul>
+          </div>
+          <div id="camera-instructions" class="instruction-set hidden">
+            <p><strong>Posture Control:</strong></p>
+            <ul>
+              <li><strong>Lean Left:</strong> Tilt your upper body left to change lanes.</li>
+              <li><strong>Lean Right:</strong> Tilt your upper body right to change lanes.</li>
+              <li><strong>Jump:</strong> Jump up or stand taller to jump.</li>
+              <li><strong>Crouch:</strong> Bend down or duck your head to slide.</li>
+            </ul>
+            <p class="setup-note">💡 Make sure your upper body is fully visible in a well-lit room.</p>
+          </div>
+        </div>
+
+        <button id="btn-start-game" class="cta-button">START RUN</button>
+        <a href="/play-real.html" class="real-game-link" style="color: #00f0ff; margin-top: 10px; font-family: 'Orbitron', sans-serif; font-size: 11px; text-decoration: none; letter-spacing: 1px; text-align: center; display: inline-block; text-shadow: 0 0 5px rgba(0,240,255,0.3); transition: color 0.2s;">⚡ PLAY OFFICIAL GAME ONLINE ⚡</a>
+      </div>
+    </div>
+
+    <!-- Calibration Modal Screen -->
+    <div id="calibration-screen" class="overlay-panel hidden">
+      <h2>CALIBRATING WEBCAM AI</h2>
+      <p class="calibration-desc">Stand centered in front of your camera. Stay still and stand upright.</p>
+      
+      <div class="calibration-visualizer">
+        <video id="calibration-video" autoplay playsinline muted></video>
+        <div class="alignment-box"></div>
+      </div>
+      
+      <div class="countdown-container">
+        <div id="calibration-countdown">3</div>
+        <div id="calibration-progress-bar"><div id="calibration-progress"></div></div>
+      </div>
+      
+      <div id="calibration-instructions-text">Aligning tracking points...</div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay-panel hidden">
+      <h2 class="game-over-title">CRASHED</h2>
+      <p class="game-over-subtitle">YOU RAN OUT OF EXTRA LIVES</p>
+      
+      <div class="final-stats">
+        <div class="stat-box">
+          <span class="stat-label">FINAL SCORE</span>
+          <span id="final-score" class="stat-value">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">COINS COLLECTED</span>
+          <span id="final-coins" class="stat-value">0</span>
+        </div>
+      </div>
+      
+      <button id="btn-restart-game" class="cta-button">RUN AGAIN</button>
+    </div>
+
+  </div>
+
+  <!-- Audio Toggle Switch (Bottom Left) -->
+  <button id="btn-audio-toggle" class="audio-btn" aria-label="Toggle Audio">
+    <span id="audio-icon">🔊</span>
+  </button>
+
+  <!-- Main JavaScript App Entry -->
+  <script type="module" src="/src/game.js"></script>
+</body>
+</html>

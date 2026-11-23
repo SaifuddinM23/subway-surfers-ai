@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Real Subway Surfers with AI Controller</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- MediaPipe Pose CDNs for Sidebar Preview -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0a0615;
+      --panel-bg: rgba(18, 12, 36, 0.85);
+      --border-glow: #ff007f;
+      --neon-cyan: #00f0ff;
+      --neon-pink: #ff007f;
+      --neon-purple: #9d00ff;
+      --text-primary: #ffffff;
+      --text-secondary: #a29bb8;
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-dark);
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Main Container Split */
+    #main-layout {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Left Side: Game Iframe */
+    #game-pane {
+      flex: 1;
+      height: 100%;
+      background: #000;
+      position: relative;
+      border-right: 2px solid rgba(255, 0, 127, 0.2);
+    }
+
+    #game-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* Right Side: Command Center Sidebar */
+    #control-sidebar {
+      width: 380px;
+      height: 100%;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 10;
+      overflow-y: auto;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-section {
+      padding: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Sidebar Titles */
+    .sidebar-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* Webcam Preview Container */
+    .webcam-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #05020c;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+      margin-bottom: 15px;
+    }
+
+    #sidebar-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    #sidebar-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+      z-index: 2;
+    }
+
+    .webcam-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Custom Buttons */
+    .btn {
+      flex: 1;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .btn-neon-pink {
+      background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(255, 0, 127, 0.3);
+    }
+
+    .btn-neon-pink:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(255, 0, 127, 0.5);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Guide & Copy Code Section */
+    .instruction-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .step-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .step-header {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .step-desc strong {
+      color: #fff;
+    }
+
+    .copy-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    #btn-copy-code {
+      width: 100%;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 240, 255, 0.2);
+    }
+
+    #btn-copy-code:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0, 240, 255, 0.4);
+    }
+
+    #btn-copy-code.copied {
+      background: #39ff14;
+      color: #000;
+      box-shadow: 0 4px 12px rgba(57, 255, 20, 0.3);
+    }
+
+    /* Back Button */
+    .back-nav {
+      padding: 15px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      font-family: var(--font-display);
+      letter-spacing: 1px;
+    }
+
+    .back-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .back-link:hover {
+      color: var(--neon-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="main-layout">
+    
+    <!-- Left Side: Official Subway Surfers HTML5 game embed -->
+    <div id="game-pane">
+      <iframe 
+        id="game-frame" 
+        src="https://subwaysurfers.pages.dev/" 
+        allow="autoplay; fullscreen; microphone; camera"
+        scrolling="no">
+      </iframe>
+    </div>
+
+    <!-- Right Side: AI Command Center -->
+    <div id="control-sidebar">
+      
+      <div class="back-nav">
+        <a href="/" class="back-link">← RETURN TO MAIN GAME</a>
+      </div>
+
+      <!-- Header -->
+      <div class="sidebar-section">
+        <h2 class="sidebar-title">AI COMMAND CENTER</h2>
+        <div class="sidebar-subtitle">Play Online with Posture</div>
+        
+        <!-- Webcam Preview Frame -->
+        <div class="webcam-container">
+          <video id="sidebar-video" autoplay playsinline muted></video>
+          <canvas id="sidebar-canvas"></canvas>
+        </div>
+        
+        <div class="webcam-actions">
+          <button id="btn-toggle-cam" class="btn btn-neon-pink">START WEBCAM PREVIEW</button>
+        </div>
+      </div>
+
+      <!-- Injection Guide -->
+      <div class="sidebar-section">
+        <h3 class="sidebar-title" style="font-size: 16px;">AI CONTROLLER INJECTION</h3>
+        <div class="sidebar-subtitle" style="font-size: 9px; margin-bottom: 15px;">Setup Guide for Real Game</div>
+        
+        <div class="instruction-steps">
+          <div class="step-card">
+            <div class="step-header">STEP 1</div>
+            <div class="step-desc">Click the button below to copy the **AI Posture Controller** script to your clipboard.</div>
+            <div class="copy-panel">
+              <button id="btn-copy-code" class="btn">COPY INJECTOR CODE</button>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-header">STEP 2</div>
+            <div class="step-desc">Right-click anywhere on the game screen to the left and select **Inspect**, then go to the **Console** tab.</div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-header">STEP 3</div>
+            <div class="step-desc">Change the console context from **top** to the game frame context (e.g. choose the entry containing **gamedistribution.com** in the dropdown).</div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-header">STEP 4</div>
+            <div class="step-desc">Paste the copied code in the console, press **Enter**, click **START CAM** in the widget, then click **CALIBRATE** to stand still and start playing!</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Sidebar webcam testing code -->
+  <script type="module">
+    import { poseTracker } from './src/pose.js';
+
+    const video = document.getElementById('sidebar-video');
+    const canvas = document.getElementById('sidebar-canvas');
+    const toggleBtn = document.getElementById('btn-toggle-cam');
+    let camActive = false;
+
+    toggleBtn.addEventListener('click', async () => {
+      if (camActive) {
+        poseTracker.stop();
+        video.srcObject = null;
+        toggleBtn.textContent = 'START WEBCAM PREVIEW';
+        toggleBtn.className = 'btn btn-neon-pink';
+        camActive = false;
+      } else {
+        toggleBtn.textContent = 'LOADING PREVIEW...';
+        toggleBtn.disabled = true;
+
+        try {
+          // Temporarily load scripts to bind callbacks
+          poseTracker.init(
+            video, 
+            canvas, 
+            (action) => {
+              console.log(`[SIDEBAR PREVIEW] Gesture: ${action}`);
+            },
+            (status) => {
+              console.log(`[SIDEBAR PREVIEW] Status: ${status}`);
+            },
+            true // enable debug overlay in preview
+          );
+          
+          await poseTracker.start();
+          toggleBtn.disabled = false;
+          toggleBtn.textContent = 'STOP WEBCAM PREVIEW';
+          toggleBtn.className = 'btn btn-outline';
+          camActive = true;
+        } catch (e) {
+          console.error(e);
+          alert('Webcam preview failed to initialize. Please check console.');
+          toggleBtn.disabled = false;
+          toggleBtn.textContent = 'START WEBCAM PREVIEW';
+        }
+      }
+    });
+
+    // Copy Code Event
+    const copyBtn = document.getElementById('btn-copy-code');
+    copyBtn.addEventListener('click', async () => {
+      try {
+        // Fetch script file contents
+        const response = await fetch('/ai-controller.js');
+        const code = await response.text();
+        
+        await navigator.clipboard.writeText(code);
+        copyBtn.textContent = 'COPIED TO CLIPBOARD! ✔';
+        copyBtn.classList.add('copied');
+        
+        setTimeout(() => {
+          copyBtn.textContent = 'COPY INJECTOR CODE';
+          copyBtn.classList.remove('copied');
+        }, 2500);
+      } catch (err) {
+        console.error('Copy failed:', err);
+        alert('Could not copy code automatically. You can copy it manually from the file: /ai-controller.js');
+      }
+    });
+  </script>
+</body>
+</html>
