@@ -29,3 +29,11 @@ npm run dev
 ```
 
 Then open [http://localhost:5175](http://localhost:5175) in your browser.
+
+## Controls
+
+- **Left / Right**: `A` / `D` or `ArrowLeft` / `ArrowRight` (Change lanes)
+- **Jump**: `W` or `ArrowUp` / `Space`
+- **Roll / Duck**: `S` or `ArrowDown`
+- **AI / Pose Mode**: Use your webcam for motion and gesture detection.
+
