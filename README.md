@@ -37,3 +37,11 @@ Then open [http://localhost:5175](http://localhost:5175) in your browser.
 - **Roll / Duck**: `S` or `ArrowDown`
 - **AI / Pose Mode**: Use your webcam for motion and gesture detection.
 
+## Tech Stack
+
+- **Graphics**: [Three.js](https://threejs.org/)
+- **Bundler & Dev Server**: [Vite](https://vitejs.dev/)
+- **AI & Computer Vision**: Web-based pose estimation & gesture detection
+- **Audio**: Web Audio API
+
+

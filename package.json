@@ -1,7 +1,16 @@
 {
   "name": "subway-surfers-ai",
   "version": "1.0.0",
+  "description": "3D Subway Surfers web game powered by Three.js and Vite with AI pose control",
   "type": "module",
+  "keywords": [
+    "subway-surfers",
+    "threejs",
+    "vite",
+    "game",
+    "ai-controller"
+  ],
+  "license": "MIT",
   "scripts": {
     "dev": "vite --host --port 5175",
     "build": "vite build",
